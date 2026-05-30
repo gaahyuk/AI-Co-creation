@@ -34,6 +34,73 @@ export default function Login() {
     }
   };
 
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    setErrorMsg("");
+
+    const demoEmail = "tester@policyflow.ai";
+    const demoPassword = "tester1234";
+
+    try {
+      // 1. Try to sign in first
+      const { data, error: loginError } = await supabase.auth.signInWithPassword({
+        email: demoEmail,
+        password: demoPassword,
+      });
+
+      if (loginError) {
+        // 2. If user doesn't exist, sign up
+        if (loginError.message.includes("Invalid login credentials") || loginError.status === 400 || loginError.message.includes("does not exist")) {
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: demoEmail,
+            password: demoPassword,
+          });
+
+          if (signUpError) throw signUpError;
+
+          const newUser = signUpData.user;
+          if (newUser) {
+            // 3. Update the newly created profile with mock data & is_admin = true
+            // Wait slightly for the DB trigger to finish profile row creation
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+
+            const { error: profileError } = await supabase
+              .from("profiles")
+              .update({
+                birth_date: "1998-05-15",
+                location: "인천광역시",
+                employment_status: "취업준비생",
+                income_level: "중위소득 100% 이하",
+                is_admin: true,
+                updated_at: new Date().toISOString()
+              })
+              .eq("id", newUser.id);
+
+            if (profileError) {
+              console.warn("[Demo Signup] Profile update failed:", profileError.message);
+            }
+          }
+
+          // 4. Sign in again to fetch session
+          const { error: retryError } = await supabase.auth.signInWithPassword({
+            email: demoEmail,
+            password: demoPassword,
+          });
+          if (retryError) throw retryError;
+        } else {
+          throw loginError;
+        }
+      }
+
+      console.log("[Auth] 데모 테스트 로그인 성공");
+      router.push("/dashboard");
+    } catch (err) {
+      setErrorMsg(err.message || "테스트 로그인 도중 에러가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSocialLogin = async (provider) => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -58,6 +125,27 @@ export default function Login() {
             ⚠️ {errorMsg}
           </div>
         )}
+
+        {/* Demo Button */}
+        <button
+          type="button"
+          id="btn-demo-login"
+          className="btn btn-primary"
+          style={{ 
+            width: "100%", 
+            marginBottom: "24px", 
+            background: "linear-gradient(135deg, var(--brand-green) 0%, #17b950 100%)",
+            color: "#ffffff",
+            fontWeight: "800",
+            boxShadow: "0 4px 15px rgba(30, 215, 96, 0.3)",
+            fontSize: "14px",
+            border: "none"
+          }}
+          onClick={handleDemoLogin}
+          disabled={loading}
+        >
+          {loading ? "테스트 환경 준비 중..." : "✨ 테스트 계정으로 1초 로그인"}
+        </button>
 
         <form onSubmit={handleEmailLogin}>
           <div className="form-group">

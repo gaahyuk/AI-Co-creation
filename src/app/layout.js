@@ -16,17 +16,50 @@ export default function RootLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [upcomingDeadline, setUpcomingDeadline] = useState(null);
 
   useEffect(() => {
+    const checkAdmin = async (userId) => {
+      if (!userId) {
+        setIsAdmin(false);
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("is_admin")
+          .eq("id", userId)
+          .single();
+
+        if (error && error.code !== "PGRST116") throw error;
+        setIsAdmin(!!data?.is_admin);
+      } catch (err) {
+        console.error("[Layout Admin Check Error]:", err.message);
+        setIsAdmin(false);
+      }
+    };
+
     // 1. Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      if (currentUser) {
+        checkAdmin(currentUser.id);
+      } else {
+        setIsAdmin(false);
+      }
     });
 
     // 2. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      if (currentUser) {
+        checkAdmin(currentUser.id);
+      } else {
+        setIsAdmin(false);
+      }
     });
 
     return () => {
@@ -133,6 +166,17 @@ export default function RootLayout({ children }) {
                 <span className="nav-icon">👤</span>
                 <span>프로필 설정</span>
               </Link>
+              {isAdmin && (
+                <Link 
+                  href="/admin" 
+                  id="nav-admin" 
+                  className={`nav-link ${pathname.startsWith("/admin") ? "active" : ""}`}
+                  style={{ borderLeft: "3px solid var(--text-warning)" }}
+                >
+                  <span className="nav-icon">🔑</span>
+                  <span style={{ color: "var(--text-warning)" }}>관리자 모드</span>
+                </Link>
+              )}
             </nav>
           </aside>
 
