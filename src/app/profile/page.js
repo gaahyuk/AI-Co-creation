@@ -69,18 +69,50 @@ export default function Profile() {
     setSuccessMsg("");
 
     try {
-      const { error } = await supabase
+      // 1. 기존 프로필 데이터가 실제로 존재하는지 조회
+      const { data: existingProfile, error: selectError } = await supabase
         .from("profiles")
-        .upsert({
-          id: user.id,
-          birth_date: birthDate || null,
-          location,
-          employment_status: employmentStatus,
-          income_level: incomeLevel,
-          updated_at: new Date().toISOString()
-        });
+        .select("id")
+        .eq("id", user.id)
+        .single();
 
-      if (error) throw error;
+      if (selectError && selectError.code !== "PGRST116") {
+        throw selectError;
+      }
+
+      let dbError;
+
+      if (existingProfile) {
+        // 2. 이미 프로필 행이 존재하므로 안정적인 UPDATE 수행
+        const { error: updateError } = await supabase
+          .from("profiles")
+          .update({
+            birth_date: birthDate || null,
+            location,
+            employment_status: employmentStatus,
+            income_level: incomeLevel,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", user.id);
+        
+        dbError = updateError;
+      } else {
+        // 3. 트리거 오류 등으로 행이 없는 경우에만 신규 INSERT 수행
+        const { error: insertError } = await supabase
+          .from("profiles")
+          .insert({
+            id: user.id,
+            birth_date: birthDate || null,
+            location,
+            employment_status: employmentStatus,
+            income_level: incomeLevel,
+            updated_at: new Date().toISOString()
+          });
+
+        dbError = insertError;
+      }
+
+      if (dbError) throw dbError;
 
       setSuccessMsg("🎉 프로필 정보가 정상적으로 업데이트되었습니다!");
       
