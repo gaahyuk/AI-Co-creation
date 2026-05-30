@@ -7,6 +7,8 @@ export function calculateAge(birthDateString) {
   if (!birthDateString) return null;
   const today = new Date();
   const birthDate = new Date(birthDateString);
+  if (isNaN(birthDate.getTime())) return null; // 유효하지 않은 날짜 포맷 방어 코드 추가
+  
   let age = today.getFullYear() - birthDate.getFullYear();
   const m = today.getMonth() - birthDate.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
