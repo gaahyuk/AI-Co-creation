@@ -84,6 +84,18 @@ describe("Scenario 2: Location Ambiguity & Matching Vulnerabilities", () => {
   const jeonbukPolicy = { min_age: 15, max_age: 40, eligible_locations: ["전라북도"], eligible_jobs: ["전체"] };
   const resJeon = diagnosePolicy(jeonnamProfile, standardProfileCheck(jeonbukPolicy));
   assert("전라남도 거주자가 '전라북도' 제한 정책에 매칭되지 않아야 함", resJeon.details.location.pass, false, "단순 Substring 매칭으로 인해 '전라남도'가 '전라북도'에 매칭될 우려가 있음");
+
+  // 2-3. 직업군 의미론적 매칭 테스트 (대학생 -> 사회초년생 정책 매칭 통과 여부)
+  const studentProfile = { birth_date: "1998-05-15", location: "전국", employment_status: "대학생" };
+  const earlyCareerPolicy = { min_age: 15, max_age: 40, eligible_locations: ["전국"], eligible_jobs: ["사회초년생"] };
+  const resStudent = diagnosePolicy(studentProfile, standardProfileCheck(earlyCareerPolicy));
+  assert("대학생 사용자가 '사회초년생' 제한 정책에 부합(의미론적 확장 매칭)", resStudent.details.job.pass, true, "대학생이 사회초년생 범위에 매칭되지 못함");
+
+  // 2-4. 직업군 의미론적 비매칭 테스트 (소상공인 -> 대학생 정책 불합격 처리)
+  const bizProfile = { birth_date: "1998-05-15", location: "전국", employment_status: "소상공인" };
+  const studentOnlyPolicy = { min_age: 15, max_age: 40, eligible_locations: ["전국"], eligible_jobs: ["대학생"] };
+  const resBiz = diagnosePolicy(bizProfile, standardProfileCheck(studentOnlyPolicy));
+  assert("소상공인 사용자가 '대학생' 전용 정책에 불합격하는지 검증", resBiz.details.job.pass, false);
 });
 
 // ==========================================

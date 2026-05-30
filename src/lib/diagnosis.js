@@ -90,12 +90,27 @@ export function diagnosePolicy(profile, policy) {
     result.details.location.message = "전국 단위 지원 (지역 제한 없음)";
   }
 
+// 직업군 의미론적 확장 관계 정의 (정책 요구 직업군 -> 매칭 가능한 사용자 직업군 목록)
+const EMPLOYMENT_EXPANSION = {
+  "사회초년생": ["사회초년생", "대학생", "취업준비생"],
+  "취업준비생": ["취업준비생", "대학생"],
+  "대학생": ["대학생"],
+  "소상공인": ["소상공인"],
+  "기타": ["기타", "무직"]
+};
+
   // 3. 직업/고용 상태 검증
   const userJob = profile.employment_status || "";
   const policyJobs = policy.eligible_jobs || [];
   
   if (policyJobs.length > 0 && !policyJobs.includes("전체")) {
-    const isMatched = policyJobs.includes(userJob);
+    // 사용자의 직업이 정책 지정 조건에 exact match 되거나, 의미적 하위 범주에 매칭되는지 판단
+    const isMatched = policyJobs.some(pj => {
+      if (pj === userJob) return true;
+      const expanded = EMPLOYMENT_EXPANSION[pj];
+      return expanded ? expanded.includes(userJob) : false;
+    });
+
     if (!isMatched && userJob) {
       result.details.job.pass = false;
       result.details.job.message = `지원 대상 직업군이 아닙니다. (${policyJobs.join(", ")} 대상)`;
@@ -103,7 +118,15 @@ export function diagnosePolicy(profile, policy) {
       result.details.job.pass = false;
       result.details.job.message = "직업/고용 상태 정보가 등록되지 않았습니다.";
     } else {
-      result.details.job.message = `직업 조건 충족 (${userJob})`;
+      // 1대1 매칭 및 의미적 범위 매칭에 따른 친절한 가이드 제공
+      const isExact = policyJobs.includes(userJob);
+      if (isExact) {
+        result.details.job.message = `직업 조건 충족 (${userJob})`;
+      } else {
+        // 상위 범주에 매칭된 경우 (예: 대학생 -> 사회초년생 정책 매칭)
+        const matchedPj = policyJobs.find(pj => EMPLOYMENT_EXPANSION[pj]?.includes(userJob));
+        result.details.job.message = `직업 조건 충족 (${userJob}은 ${matchedPj} 범주에 포함)`;
+      }
     }
   } else {
     result.details.job.message = "직업 제한 없음 (전체 대상)";
