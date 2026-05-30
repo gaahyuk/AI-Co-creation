@@ -8,7 +8,6 @@ import { diagnosePolicy } from "@/lib/diagnosis";
 
 export default function PolicyDetail({ params }) {
   const router = useRouter();
-  const { id } = params;
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [policy, setPolicy] = useState(null);
@@ -18,6 +17,10 @@ export default function PolicyDetail({ params }) {
 
   useEffect(() => {
     const fetchPolicyData = async () => {
+      // Next.js 15/16 Breaking Change: params is a Promise. We must await it.
+      const resolvedParams = await params;
+      const id = resolvedParams.id;
+
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
@@ -66,7 +69,7 @@ export default function PolicyDetail({ params }) {
     };
 
     fetchPolicyData();
-  }, [id, router]);
+  }, [params, router]);
 
   const handleWalletToggle = async () => {
     if (!user || !policy) return;
