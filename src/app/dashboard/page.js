@@ -41,7 +41,8 @@ export default function Dashboard() {
         // 2. Fetch Policies
         const { data: pols, error: polsError } = await supabase
           .from("policies")
-          .select("*");
+          .select("*")
+          .eq("is_active", true);
 
         if (polsError) throw polsError;
         setPolicies(pols || []);

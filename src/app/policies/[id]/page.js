@@ -138,6 +138,22 @@ export default function PolicyDetail({ params }) {
     return `${val.toLocaleString()}원`;
   };
 
+  const getActualReferenceUrl = (p) => {
+    if (!p) return "";
+    
+    // 온통청년 2025.07 사이트 개편으로 구 youngPlcyUnif URL이 전부 무효화됨.
+    // DB에 저장된 reference_url을 직접 사용하되, 온통청년 메인 도메인만 있는 경우 통합검색으로 연결.
+    if (p.reference_url) {
+      const isGenericYouthCenter = /^(https?:\/\/)?(www\.)?youthcenter\.go\.kr\/?$/.test(p.reference_url.trim());
+      if (isGenericYouthCenter) {
+        return "https://www.youthcenter.go.kr/youthPolicy/ythPlcyTotalSearch";
+      }
+      return p.reference_url;
+    }
+
+    return "";
+  };
+
   return (
     <div style={{ maxWidth: "800px", margin: "0 auto", padding: "20px 0" }}>
       {/* Back to Dashboard Link */}
@@ -270,19 +286,43 @@ export default function PolicyDetail({ params }) {
       </section>
 
       {/* Action Buttons */}
-      <section style={{ display: "flex", gap: "16px", marginTop: "32px" }}>
+      <section style={{ display: "flex", gap: "16px", marginTop: "32px", flexWrap: "wrap" }}>
         <button
           id="btn-detail-wallet-toggle"
           className={`btn ${isSaved ? 'btn-secondary' : 'btn-primary'}`}
-          style={{ flex: 1 }}
+          style={{ flex: 1, minWidth: "180px" }}
           onClick={handleWalletToggle}
           disabled={actionLoading}
         >
           {isSaved ? "지갑에서 해제" : "내 지갑에 저장하기"}
         </button>
 
+        {getActualReferenceUrl(policy) && (
+          <a
+            href={getActualReferenceUrl(policy)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn"
+            style={{ 
+              flex: 1, 
+              textAlign: "center", 
+              display: "inline-flex", 
+              alignItems: "center", 
+              justifyContent: "center", 
+              gap: "8px", 
+              backgroundColor: "rgba(30, 215, 96, 0.12)", 
+              border: "1px solid var(--brand-green)", 
+              color: "var(--brand-green)", 
+              fontWeight: "800",
+              minWidth: "180px"
+            }}
+          >
+            🏛️ 공식 신청 사이트 바로가기 ↗
+          </a>
+        )}
+
         {diagnosis.isEligible && isSaved && (
-          <Link href="/wallet" className="btn btn-primary" style={{ flex: 1, textAlign: "center", backgroundColor: "var(--text-announcement)", color: "#ffffff" }} id="btn-detail-prepare-docs">
+          <Link href="/wallet" className="btn btn-primary" style={{ flex: 1, textAlign: "center", backgroundColor: "var(--text-announcement)", color: "#ffffff", minWidth: "180px" }} id="btn-detail-prepare-docs">
             서류 준비하러 가기
           </Link>
         )}

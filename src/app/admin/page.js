@@ -9,7 +9,11 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
   const [policies, setPolicies] = useState([]);
+  
+  // Detail Modal State
+  const [selectedPolicy, setSelectedPolicy] = useState(null);
   
   // Form states
   const [policyId, setPolicyId] = useState("");
@@ -24,6 +28,7 @@ export default function AdminDashboard() {
   const [deadline, setDeadline] = useState("");
   const [description, setDescription] = useState("");
   const [requiredDocs, setRequiredDocs] = useState("주민등록등본, 소득금액증명원");
+  const [referenceUrl, setReferenceUrl] = useState("");
 
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -88,6 +93,49 @@ export default function AdminDashboard() {
     }
   };
 
+  // 3. Sync Policies Handler
+  const handleSyncPolicies = async () => {
+    setSyncLoading(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const res = await fetch("/api/policies/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "동기화 실패");
+      }
+      setSuccessMsg(`🔄 ${data.message}`);
+      await fetchPolicies();
+    } catch (err) {
+      setErrorMsg(`동기화 에러: ${err.message}`);
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  // 4. Approve Policy Handler
+  const handleApprovePolicy = async (id, title) => {
+    setActionLoading(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const { error } = await supabase
+        .from("policies")
+        .update({ is_active: true, is_verified: true })
+        .eq("id", id);
+      if (error) throw error;
+      setSuccessMsg(`🟢 "${title}" 정책이 검증 완료되어 일반 사용자 대시보드에 실시간 노출 개시되었습니다!`);
+      await fetchPolicies();
+    } catch (err) {
+      setErrorMsg(`승인 에러: ${err.message}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // 3. Create Policy Handler
   const handleCreatePolicy = async (e) => {
     e.preventDefault();
@@ -122,6 +170,7 @@ export default function AdminDashboard() {
           deadline: new Date(deadline).toISOString(),
           description: description.trim(),
           required_documents: reqDocs,
+          reference_url: referenceUrl.trim() || null,
           created_at: new Date().toISOString()
         });
 
@@ -135,6 +184,7 @@ export default function AdminDashboard() {
       setBenefitAmount("");
       setDeadline("");
       setDescription("");
+      setReferenceUrl("");
       
       // Refresh list
       await fetchPolicies();
@@ -169,6 +219,25 @@ export default function AdminDashboard() {
     return `${val.toLocaleString()}원`;
   };
 
+  const getActualReferenceUrl = (policy) => {
+    if (!policy) return "";
+    
+    // 온통청년 2025.07 사이트 개편으로 구 youngPlcyUnif URL이 전부 무효화됨.
+    // DB에 저장된 reference_url을 직접 사용하되, 온통청년 메인 도메인만 있는 경우 통합검색으로 연결.
+    if (policy.reference_url) {
+      const isGenericYouthCenter = /^(https?:\/\/)?(www\.)?youthcenter\.go\.kr\/?$/.test(policy.reference_url.trim());
+      if (isGenericYouthCenter) {
+        return "https://www.youthcenter.go.kr/youthPolicy/ythPlcyTotalSearch";
+      }
+      return policy.reference_url;
+    }
+
+    return "";
+  };
+
+  const activePolicies = policies.filter(p => p.is_verified !== false);
+  const sandboxPolicies = policies.filter(p => p.is_verified === false);
+
   if (loading) {
     return (
       <div style={{ textAlign: "center", padding: "80px 20px" }}>
@@ -189,6 +258,26 @@ export default function AdminDashboard() {
         </Link>
       </div>
 
+      {/* 🔄 Sync Control Bar */}
+      <div className="checklist-container" style={{ padding: "20px 24px", marginBottom: "32px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid var(--border-gray)", backgroundColor: "rgba(255, 255, 255, 0.02)", flexWrap: "wrap", gap: "16px" }}>
+        <div style={{ flex: 1, minWidth: "280px" }}>
+          <h3 style={{ fontSize: "16px", fontWeight: "700", display: "flex", alignItems: "center", gap: "8px" }}>
+            <span>🔄 공공 정책 데이터 실시간 연동 (Sync Engine)</span>
+          </h3>
+          <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "4px 0 0 0", lineHeight: "1.4" }}>
+            온통청년 Open API를 호출하여 최신 정책 정보를 실시간 수집하고 매칭 파이프라인으로 적재합니다. (API 키 미등록 시 자동 시뮬레이션 데이터 수집)
+          </p>
+        </div>
+        <button
+          className="btn btn-primary"
+          style={{ background: "var(--brand-green)", borderColor: "var(--brand-green)", color: "#121212", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px", padding: "12px 24px" }}
+          onClick={handleSyncPolicies}
+          disabled={syncLoading}
+        >
+          {syncLoading ? "동기화 진행 중..." : "🚀 실시간 공공 API 수집 트리거"}
+        </button>
+      </div>
+
       {successMsg && (
         <div style={{ backgroundColor: "rgba(30, 215, 96, 0.1)", color: "var(--brand-green)", padding: "16px", borderRadius: "8px", marginBottom: "32px", fontSize: "15px", fontWeight: "700" }}>
           {successMsg}
@@ -201,16 +290,97 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* 📥 Sandbox Policies (Verified = False) */}
+      {sandboxPolicies.length > 0 && (
+        <div style={{ marginBottom: "32px" }}>
+          <h2 style={{ fontSize: "20px", fontWeight: "700", marginBottom: "16px", display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--text-warning)" }}>
+            <span>📥 외부 수집 정책 검증 & 승인 대기 (Sandbox)</span>
+            <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>총 {sandboxPolicies.length}개 대기 중</span>
+          </h2>
+          <div className="table-container" style={{ border: "1px solid rgba(255, 164, 43, 0.2)" }}>
+            <table className="custom-table" id="table-admin-sandbox">
+              <thead>
+                <tr style={{ backgroundColor: "rgba(255, 164, 43, 0.05)" }}>
+                  <th>수집된 정책 정보</th>
+                  <th>자동 파싱 조건</th>
+                  <th>지원 금액</th>
+                  <th>검증 조치</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sandboxPolicies.map((p) => (
+                  <tr key={p.id} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        <span 
+                          style={{ fontWeight: "700", fontSize: "14px", color: "var(--text-warning)", cursor: "pointer", textDecoration: "underline" }}
+                          onClick={() => setSelectedPolicy(p)}
+                          title="상세 모달 보기"
+                        >
+                          {p.title}
+                        </span>
+                        <Link 
+                          href={`/policies/${p.id}`} 
+                          target="_blank" 
+                          style={{ fontSize: "11px", color: "var(--text-secondary)", textDecoration: "underline", display: "inline-flex", alignItems: "center", gap: "2px" }}
+                        >
+                          상세페이지 ↗
+                        </Link>
+                      </div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
+                        ID: <code>{p.id}</code> | 마감: {new Date(p.deadline).toLocaleDateString()}
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ fontSize: "12px" }}>
+                        <span style={{ color: "var(--brand-green)" }}>나이:</span> 만 {p.min_age || 0}~{p.max_age || 150}세 <br />
+                        <span style={{ color: "var(--brand-green)" }}>지역:</span> {p.eligible_locations?.join(", ")} <br />
+                        <span style={{ color: "var(--brand-green)" }}>직업:</span> {p.eligible_jobs?.join(", ")} <br />
+                        <span style={{ color: "var(--brand-green)" }}>소득:</span> {p.income_limit || "제한 없음"}
+                      </div>
+                    </td>
+                    <td>
+                      <span style={{ fontWeight: "700", color: "var(--brand-green)", fontSize: "13px" }}>
+                        {formatCurrency(p.benefit_amount)}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                          className="btn-text"
+                          style={{ color: "var(--brand-green)", fontSize: "12px", fontWeight: "800" }}
+                          onClick={() => handleApprovePolicy(p.id, p.title)}
+                        >
+                          승인
+                        </button>
+                        <span style={{ color: "var(--border-gray)" }}>|</span>
+                        <button
+                          className="btn-text"
+                          style={{ color: "var(--text-negative)", fontSize: "12px", fontWeight: "700" }}
+                          onClick={() => handleDeletePolicy(p.id, p.title)}
+                        >
+                          반려
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: "32px", alignItems: "start" }}>
         
         {/* 1. Policy List */}
         <div>
           <h2 style={{ fontSize: "20px", fontWeight: "700", marginBottom: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>등록된 정책 현황</span>
-            <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>총 {policies.length}개</span>
+            <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>총 {activePolicies.length}개</span>
           </h2>
 
-          {policies.length > 0 ? (
+          {activePolicies.length > 0 ? (
             <div className="table-container">
               <table className="custom-table" id="table-admin-policies">
                 <thead>
@@ -222,11 +392,26 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {policies.map((p) => (
+                  {activePolicies.map((p) => (
                     <tr key={p.id}>
                       <td>
-                        <div style={{ fontWeight: "700", fontSize: "14px" }}>{p.title}</div>
-                        <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                          <span 
+                            style={{ fontWeight: "700", fontSize: "14px", cursor: "pointer", textDecoration: "underline", color: "var(--text-primary)" }}
+                            onClick={() => setSelectedPolicy(p)}
+                            title="상세 모달 보기"
+                          >
+                            {p.title}
+                          </span>
+                          <Link 
+                            href={`/policies/${p.id}`} 
+                            target="_blank" 
+                            style={{ fontSize: "11px", color: "var(--text-secondary)", textDecoration: "underline", display: "inline-flex", alignItems: "center", gap: "2px" }}
+                          >
+                            상세페이지 ↗
+                          </Link>
+                        </div>
+                        <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>
                           ID: <code>{p.id}</code> | 마감: {new Date(p.deadline).toLocaleDateString()}
                         </div>
                       </td>
@@ -419,6 +604,18 @@ export default function AdminDashboard() {
             </div>
 
             <div className="form-group" style={{ marginTop: "12px" }}>
+              <label className="form-label" htmlFor="input-policy-refurl">실제 정책 웹사이트 URL (선택)</label>
+              <input
+                type="url"
+                id="input-policy-refurl"
+                className="form-input"
+                placeholder="예: https://www.youthcenter.go.kr/..."
+                value={referenceUrl}
+                onChange={(e) => setReferenceUrl(e.target.value)}
+              />
+            </div>
+
+            <div className="form-group" style={{ marginTop: "12px" }}>
               <label className="form-label" htmlFor="textarea-policy-desc">정책 상세 설명 *</label>
               <textarea
                 id="textarea-policy-desc"
@@ -444,6 +641,176 @@ export default function AdminDashboard() {
         </div>
 
       </div>
+
+      {/* 🔍 Premium Detail Modal */}
+      {selectedPolicy && (
+        <div 
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.8)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 9999,
+            padding: "20px"
+          }} 
+          onClick={() => setSelectedPolicy(null)}
+        >
+          <div 
+            style={{
+              backgroundColor: "#16161a",
+              border: "1px solid var(--border-gray)",
+              borderRadius: "16px",
+              width: "100%",
+              maxWidth: "640px",
+              padding: "28px",
+              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.6)",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              position: "relative"
+            }} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "16px" }}>
+              <span style={{ backgroundColor: "rgba(30, 215, 96, 0.12)", color: "var(--brand-green)", fontSize: "12px", fontWeight: "800", padding: "6px 12px", borderRadius: "6px" }}>
+                🏷️ {selectedPolicy.category}
+              </span>
+              <button 
+                style={{ background: "none", border: "none", color: "var(--text-secondary)", fontSize: "24px", cursor: "pointer", transition: "color 0.2s" }}
+                onClick={() => setSelectedPolicy(null)}
+                onMouseEnter={(e) => e.target.style.color = "#ffffff"}
+                onMouseLeave={(e) => e.target.style.color = "var(--text-secondary)"}
+              >
+                ✕
+              </button>
+            </div>
+
+            <h3 style={{ fontSize: "24px", fontWeight: "800", color: "#ffffff", marginBottom: "20px", lineHeight: "1.3" }}>
+              {selectedPolicy.title}
+            </h3>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px", backgroundColor: "rgba(255,255,255,0.02)", padding: "20px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.04)" }}>
+              <div>
+                <span style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>정책 고유 Key ID</span>
+                <div style={{ fontSize: "14px", fontWeight: "700", color: "#ffffff", fontFamily: "monospace" }}>{selectedPolicy.id}</div>
+              </div>
+              <div>
+                <span style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>지원 혜택 규모</span>
+                <div style={{ fontSize: "15px", fontWeight: "800", color: "var(--brand-green)" }}>{formatCurrency(selectedPolicy.benefit_amount)}</div>
+              </div>
+              <div style={{ marginTop: "8px" }}>
+                <span style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>수혜 대상 연령 제한</span>
+                <div style={{ fontSize: "14px", fontWeight: "600", color: "#ffffff" }}>만 {selectedPolicy.min_age || 0}~{selectedPolicy.max_age || 150}세</div>
+              </div>
+              <div style={{ marginTop: "8px" }}>
+                <span style={{ fontSize: "11px", color: "var(--text-secondary)", display: "block", marginBottom: "4px", textTransform: "uppercase" }}>신청 마감일자</span>
+                <div style={{ fontSize: "14px", fontWeight: "600", color: "#ffffff" }}>{new Date(selectedPolicy.deadline).toLocaleDateString()}</div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: "24px", padding: "16px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.04)" }}>
+              <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block", marginBottom: "10px", fontWeight: "700" }}>🎯 맞춤형 4축 타겟 요건</span>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "8px", fontSize: "13px" }}>
+                <div>📍 <strong style={{ color: "var(--brand-green)" }}>지역:</strong> {selectedPolicy.eligible_locations?.join(", ") || "전국"}</div>
+                <div>💼 <strong style={{ color: "var(--brand-green)" }}>직업:</strong> {selectedPolicy.eligible_jobs?.join(", ") || "전체"}</div>
+                <div>💰 <strong style={{ color: "var(--brand-green)" }}>소득한도:</strong> {selectedPolicy.income_limit || "제한 없음"}</div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: "24px" }}>
+              <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block", marginBottom: "8px", fontWeight: "700" }}>📝 상세 설명 및 혜택 요건</span>
+              <div style={{ 
+                fontSize: "14px", 
+                color: "rgba(255,255,255,0.9)", 
+                lineHeight: "1.6", 
+                whiteSpace: "pre-wrap", 
+                backgroundColor: "rgba(255,255,255,0.01)", 
+                padding: "16px", 
+                borderRadius: "8px", 
+                border: "1px solid rgba(255,255,255,0.04)",
+                maxHeight: "200px",
+                overflowY: "auto"
+              }}>
+                {selectedPolicy.description}
+              </div>
+            </div>
+
+            {selectedPolicy.required_documents && selectedPolicy.required_documents.length > 0 && (
+              <div style={{ marginBottom: "28px" }}>
+                <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "block", marginBottom: "8px", fontWeight: "700" }}>📄 필수 구비 서류 목록</span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                  {selectedPolicy.required_documents.map((doc, idx) => (
+                    <span key={idx} style={{ fontSize: "12px", backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", padding: "6px 14px", borderRadius: "20px", color: "var(--text-primary)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                      📄 {doc}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "12px", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "20px", flexWrap: "wrap" }}>
+              <Link 
+                href={`/policies/${selectedPolicy.id}`}
+                target="_blank"
+                className="btn btn-secondary"
+                style={{ flex: 1, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", fontSize: "14px", padding: "12px 0", minWidth: "150px" }}
+              >
+                상세 페이지 미리보기 ↗
+              </Link>
+              {getActualReferenceUrl(selectedPolicy) && (
+                <a 
+                  href={getActualReferenceUrl(selectedPolicy)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn"
+                  style={{ 
+                    flex: 1, 
+                    textAlign: "center", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center", 
+                    gap: "6px", 
+                    fontSize: "14px", 
+                    padding: "12px 0",
+                    backgroundColor: "rgba(255, 164, 43, 0.15)",
+                    border: "1px solid var(--text-warning)",
+                    color: "var(--text-warning)",
+                    fontWeight: "700",
+                    minWidth: "150px"
+                  }}
+                >
+                  🏛️ 실제 원문 사이트 ↗
+                </a>
+              )}
+              {selectedPolicy.is_verified === false ? (
+                <button 
+                  className="btn btn-primary"
+                  style={{ flex: 1.2, backgroundColor: "var(--brand-green)", borderColor: "var(--brand-green)", color: "#121212", fontWeight: "800", fontSize: "14px", padding: "12px 0", minWidth: "150px" }}
+                  onClick={() => {
+                    handleApprovePolicy(selectedPolicy.id, selectedPolicy.title);
+                    setSelectedPolicy(null);
+                  }}
+                >
+                  🟢 최종 검증 승인
+                </button>
+              ) : (
+                <button 
+                  className="btn btn-secondary"
+                  style={{ flex: 0.6, color: "var(--text-secondary)", fontSize: "14px", padding: "12px 0", minWidth: "80px" }}
+                  onClick={() => setSelectedPolicy(null)}
+                >
+                  닫기
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

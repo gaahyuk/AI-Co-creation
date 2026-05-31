@@ -13,7 +13,8 @@ export const seedPoliciesList = [
     benefit_amount: 2400000, // 최대 240만원
     deadline: "2026-12-31T23:59:59Z",
     description: "청년층의 주거비 부담 경감을 위해 실제 납부하는 월세를 최대 20만원까지 12개월 동안 지원하는 사업입니다.",
-    required_documents: ["임대차계약서", "월세이체증빙서류", "주민등록등본"]
+    required_documents: ["임대차계약서", "월세이체증빙서류", "주민등록등본"],
+    reference_url: "https://www.bokjiro.go.kr"
   },
   {
     id: "policy-youth-saving",
@@ -27,7 +28,8 @@ export const seedPoliciesList = [
     benefit_amount: 50000000, // 최대 5000만원
     deadline: "2026-08-31T23:59:59Z",
     description: "청년의 중장기 자산형성을 돕기 위해 5년간 매월 일정 금액을 납입하면 정부 기여금과 비과세 혜택을 더해 만기 시 목돈을 돌려주는 계좌입니다.",
-    required_documents: ["소득금액증명원"]
+    required_documents: ["소득금액증명원"],
+    reference_url: "https://ylaccount.kinfa.or.kr"
   },
   {
     id: "policy-youth-job",
@@ -41,7 +43,8 @@ export const seedPoliciesList = [
     benefit_amount: 3000000, // 최대 300만원
     deadline: "2026-11-30T23:59:59Z",
     description: "취업을 희망하는 청년들에게 취업지원서비스를 종합적으로 제공하고, 저소득 구직자에게는 최소한의 생계 안정을 위한 구직촉진수당(월 50만원씩 6개월)을 지급하는 제도입니다.",
-    required_documents: ["구직등록필증", "주민등록등본"]
+    required_documents: ["구직등록필증", "주민등록등본"],
+    reference_url: "https://www.kua.go.kr"
   },
   {
     id: "policy-incheon-dream",
@@ -55,7 +58,8 @@ export const seedPoliciesList = [
     benefit_amount: 3000000, // 최대 300만원
     deadline: "2026-06-15T23:59:59Z", // 마감 임박 정책 예시!
     description: "인천에 거주하는 미취업 청년들의 적극적인 구직활동을 위해 매월 50만원씩 6개월간 총 300만원의 구직활동비를 체크카드 포인트 형태로 지원합니다.",
-    required_documents: ["주민등록등본", "소득금액증명원"]
+    required_documents: ["주민등록등본", "소득금액증명원"],
+    reference_url: "https://youth.incheon.go.kr"
   }
 ];
 

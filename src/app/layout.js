@@ -68,13 +68,12 @@ export default function RootLayout({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!user) {
-      setUpcomingDeadline(null);
-      return;
-    }
-
     // Fetch user's saved policies to display a mock deadline guardian alert on the bottom bar
     const fetchDeadlines = async () => {
+      if (!user) {
+        setUpcomingDeadline(null);
+        return;
+      }
       try {
         const { data: apps, error } = await supabase
           .from("applications")
