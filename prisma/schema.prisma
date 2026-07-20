@@ -1,0 +1,413 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  passwordHash  String?
+  provider      String    @default("credentials") // credentials | kakao | naver
+  providerId    String?
+  isAdmin       Boolean   @default(false) // 지자체 정책 CSV 업로드 등 내부 어드민 도구 접근 권한
+  createdAt     DateTime  @default(now())
+
+  profile              UserProfile?
+  documents            Document[]
+  trackings            UserPolicyTracking[]
+  notifications        NotificationLog[]
+  policyTips           PolicyTip[]
+  documentProgressList UserDocumentProgress[]
+  assetSimulations     UserAssetSimulation[]
+  rewards              UserReward[]
+  points               UserPoints?
+  feedback             PolicyFeedback[]
+  qna                  PolicyQnA[]
+  checklists           ApplicationChecklist[]
+  applicationSuccess   ApplicationSuccess[]
+  newsletter           NewsletterSubscription?
+  recommendations      PolicyRecommendation[]
+}
+
+model UserProfile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  birthDate     DateTime
+  regionCode    String   // 법정동코드 기반 지역 코드 (예: 서울 11000)
+  jobStatus     String   // employed | unemployed | student | self_employed
+  incomeAmount  Int?     // 연소득(원, 세전)
+  incomeBracket String?  // 중위소득 구간 (예: "50%이하")
+  major         String?
+  phone         String?  // 카카오 알림톡 수신용 휴대폰 번호
+  updatedAt     DateTime @updatedAt
+}
+
+model Policy {
+  id                String   @id @default(cuid())
+  sourceSystem      String   // youth_center | subsidy24 | manual_local
+  sourceId          String
+  title             String
+  category          String   // 일자리 | 주거 | 교육 | 복지문화 | 참여권리 등
+  ageMin            Int?
+  ageMax            Int?
+  regionCodes       Json?    // string[] 직렬화, 빈배열/null = 전국
+  jobStatusCodes    Json?    // string[] 직렬화
+  incomeCondition   Json?    // { type: "bracket"|"amount"|"none", operator, value }
+  rawConditionText  String?
+  description       String?  // 정책 소개 원문
+  supportContent    String?  // 지원내용 상세 원문
+  requiredDocsText  String?  // 제출서류 안내 원문(표준코드로 태깅되지 않은 자유텍스트 포함)
+  provisionInstName String?  // 주관/제공 기관명 (예: 산림청)
+  keywords          String?  // 정책 키워드 (해시태그용, 콤마구분 원문)
+  estimatedAmount   Int?     // 지원내용 텍스트에서 추출한 대표 지원금액(원). 확인 불가 시 null
+  conditionsVerified Boolean @default(true) // false = 텍스트 조건 자동추출 실패, 원문 확인 필요
+  applyStart        DateTime?
+  applyEnd          DateTime?
+  applyUrl          String?
+  syncedAt          DateTime @default(now())
+  seasons           Json?    // ["semester_start", "summer", "winter"] 등 신청 최적 시기
+
+  requiredDocuments PolicyRequiredDocument[]
+  trackings         UserPolicyTracking[]
+  tips              PolicyTip[]
+  documentGuides    PolicyDocumentGuide[]
+  timings           PolicyTiming[]
+  assetPolicy       AssetFormationPolicy?
+  feedback          PolicyFeedback[]
+  qna               PolicyQnA[]
+  checklists        ApplicationChecklist[]
+  applicationSuccess ApplicationSuccess[]
+  news              PolicyNews[]
+  recommendations   PolicyRecommendation[]
+
+  @@unique([sourceSystem, sourceId])
+}
+
+model PolicyRequiredDocument {
+  id         String  @id @default(cuid())
+  policyId   String
+  policy     Policy  @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  docType    String  // 표준 문서유형 코드 (예: resident_registration, income_certificate)
+  isRequired Boolean @default(true)
+}
+
+model Document {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileUrl    String   // 서버 로컬 디스크 경로 (비공개, /api/documents/[id]/file 로만 서빙)
+  fileName   String   // 사용자에게 보여줄 원본 파일명
+  docType    String?  // OCR/분류 결과, null = 미분류
+  ocrText    String?
+  ocrStatus  String   @default("pending") // pending | done | failed
+  uploadedAt DateTime @default(now())
+}
+
+model UserPolicyTracking {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policyId    String
+  policy      Policy    @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  status      String    @default("interested") // interested | checklist_in_progress | ready | applied | missed
+  matchReason Json?
+  deadlineAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, policyId])
+}
+
+model PolicyTip {
+  id        String   @id @default(cuid())
+  policyId  String
+  policy    Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  userId    String   // 어뷰징 방지(rate limit) 용도로만 저장, 화면에는 절대 노출하지 않음
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String   // 한 줄 제보 (최대 200자)
+  tipType   String   @default("general") // general | site_down | document_tip | budget_exhausted
+  createdAt DateTime @default(now())
+}
+
+model NotificationLog {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel      String   // kakao_alimtalk | email
+  templateCode String?
+  status       String   // sent | failed | fallback_used
+  sentAt       DateTime @default(now())
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String   // 소문자/트림 정규화된 값. 무차별 대입 방어용 실패 기록이며 User와 연결하지 않는다
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+}
+
+// 정책 타이밍 & 캘린더 관련 모델
+
+model PolicyTiming {
+  id           String   @id @default(cuid())
+  policyId     String
+  policy       Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  season       String   // semester_start | summer | winter | spring | fall | quarter1 | quarter2 | quarter3 | quarter4
+  description  String?  // 이 정책의 해당 계절 설명 (예: "학기 초에 신청이 가장 유리합니다")
+  optimalMonth Int?     // 최적 신청 월 (1-12)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([policyId, season])
+}
+
+// 서류 가이드 & 체크리스트 관련 모델
+
+model DocumentGuide {
+  id            String   @id @default(cuid())
+  code          String   @unique // 서류 코드 (예: resident_registration)
+  title         String   // 서류명 (예: 주민등록등본)
+  description   String?  // 설명
+  steps         Json     // 단계별 준비 방법 (배열)
+  issuePlaces   Json     // 발급처 정보 (배열: {name, address, phone})
+  fee           Int?     // 수수료 (원)
+  processingDay Int?     // 처리 기간 (일)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  policyGuides PolicyDocumentGuide[]
+  userProgress UserDocumentProgress[]
+}
+
+model PolicyDocumentGuide {
+  id           String   @id @default(cuid())
+  policyId     String
+  policy       Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  documentId   String
+  document     DocumentGuide @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  isRequired   Boolean  @default(true) // 필수/선택
+  guide        String?  // 이 정책에서의 해당 서류 추가 안내
+  createdAt    DateTime @default(now())
+
+  @@unique([policyId, documentId])
+}
+
+model UserDocumentProgress {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policyId     String
+  documentId   String
+  document     DocumentGuide @relation(fields: [documentId], references: [id])
+  status       String   @default("not_started") // not_started | preparing | completed | uploaded
+  uploadedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, policyId, documentId])
+}
+
+// 자산 형성 정책 & 리워드 관련 모델
+
+model AssetFormationPolicy {
+  id                 String   @id @default(cuid())
+  policyId           String   @unique
+  policy             Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  category           String   // savings_account | investment_support | housing_deposit
+  monthlyContribution Int?     // 월 기여금 (원)
+  governmentSupport  Int?     // 정부 지원금 (원/월)
+  term               Int?     // 기간 (개월)
+  maxBenefit         Int?     // 최대 지원금 (원)
+  createdAt          DateTime @default(now())
+
+  simulations UserAssetSimulation[]
+}
+
+model UserAssetSimulation {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policyId          String
+  policy            AssetFormationPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  monthlyAmount     Int      // 월 저축/투자 금액
+  simulatedAmount   Int      // 시뮬레이션 결과 총액 (월기여 + 정부지원)
+  governmentSupport Int      // 정부 지원 예상액
+  completed         Boolean  @default(false)
+  completedAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([userId, policyId])
+}
+
+model Reward {
+  id          String   @id @default(cuid())
+  code        String   @unique // 배지 코드 (예: first_policy_apply)
+  name        String   // 배지 이름
+  description String?  // 설명
+  icon        String?  // 이모지
+  points      Int      @default(0) // 포인트 보상
+  createdAt   DateTime @default(now())
+
+  userRewards UserReward[]
+}
+
+model UserReward {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rewardId  String
+  reward    Reward   @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+  earnedAt  DateTime @default(now())
+
+  @@unique([userId, rewardId])
+}
+
+model UserPoints {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalPoints Int    @default(0)
+  level     Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 학사 일정 통합
+
+model AcademicCalendar {
+  id          String   @id @default(cuid())
+  year        Int      // 학년도 (2026)
+  semester    Int      // 1: 1학기, 2: 2학기
+  startDate   DateTime // 학기 시작일
+  endDate     DateTime // 학기 종료일
+  vacationStart DateTime? // 방학 시작일
+  vacationEnd DateTime?   // 방학 종료일
+  events      Json?    // 추가 일정 (수강신청, 추가정정 등)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([year, semester])
+}
+
+// 정책 커뮤니티
+
+model PolicyFeedback {
+  id        String   @id @default(cuid())
+  policyId  String
+  policy    Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String   // 한 줄 후기 (최대 500자)
+  rating    Int?     // 1-5점 평점
+  helpful   Int      @default(0) // 도움이 됨 카운트
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 정책 Q&A
+
+model PolicyQnA {
+  id        String   @id @default(cuid())
+  policyId  String
+  policy    Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question  String   // 질문 (최대 500자)
+  answer    String?  // 답변
+  answeredBy String? // 답변자 (관리자 이메일)
+  votes     Int      @default(0) // 추천 수
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 정책 신청 체크리스트 (상세)
+
+model ApplicationChecklist {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policyId    String
+  policy      Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  checklist   Json     // 체크리스트 항목 배열
+  completed   Boolean  @default(false)
+  completedAt DateTime?
+  submittedAt DateTime? // 실제 신청한 시간
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, policyId])
+}
+
+// 정책 신청 성공 후기
+
+model ApplicationSuccess {
+  id        String   @id @default(cuid())
+  policyId  String
+  policy    Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String   // 제목 (예: "3개월 만에 300만원 받았어요!")
+  content   String   // 상세 후기
+  receivedAmount Int? // 받은 금액
+  daysToReceive Int?  // 신청 후 받기까지 걸린 일수
+  helpful   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 뉴스레터 구독
+
+model NewsletterSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email     String   @unique
+  categories Json?   // 구독할 카테고리 (예: ["일자리", "주거"])
+  frequency String   @default("weekly") // daily | weekly | monthly
+  subscribed Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 추천 정책 히스토리
+
+model PolicyRecommendation {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policyId     String
+  policy       Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  score        Float    // 매칭 점수 (0-100)
+  reason       String   // 추천 이유 (예: "당신의 소득과 나이에 맞습니다")
+  clicked      Boolean  @default(false)
+  applied      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, policyId])
+}
+
+// 정책 뉴스
+
+model PolicyNews {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  source    String   // 출처 (예: 온통청년, 지자체)
+  category  String
+  policyId  String?  // 관련 정책 ID (있으면)
+  policy    Policy?  @relation(fields: [policyId], references: [id], onDelete: SetNull)
+  imageUrl  String?
+  url       String?
+  views     Int      @default(0)
+  published DateTime @default(now())
+  createdAt DateTime @default(now())
+}
