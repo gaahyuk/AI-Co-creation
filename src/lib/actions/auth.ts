@@ -1,11 +1,8 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { z } from "zod";
-import bcrypt from "bcryptjs";
-import { AuthError } from "next-auth";
-import { prisma } from "@/lib/prisma";
-import { signIn } from "@/lib/auth";
-import { checkLoginLock, recordFailedLogin, clearFailedLogins } from "@/lib/login-rate-limit";
+import { createClient } from "@/lib/supabase/server";
 
 const CredentialsSchema = z.object({
   email: z.email({ error: "올바른 이메일을 입력해주세요." }),
@@ -31,24 +28,17 @@ export async function signup(
 
   const { email, password } = parsed.data;
 
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    return { error: "이미 가입된 이메일입니다." };
-  }
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signUp({ email, password });
 
-  const passwordHash = await bcrypt.hash(password, 10);
-  await prisma.user.create({
-    data: { email, passwordHash, provider: "credentials" },
-  });
-
-  try {
-    await signIn("credentials", { email, password, redirectTo: "/profile" });
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return { error: "회원가입은 완료됐지만 로그인에 실패했습니다. 다시 로그인해주세요." };
+  if (error) {
+    if (error.code === "user_already_exists") {
+      return { error: "이미 가입된 이메일입니다." };
     }
-    throw error;
+    return { error: "회원가입에 실패했습니다. 잠시 후 다시 시도해주세요." };
   }
+
+  redirect("/profile");
 }
 
 export async function login(
@@ -66,24 +56,18 @@ export async function login(
 
   const { email, password } = parsed.data;
 
-  const lock = await checkLoginLock(email);
-  if (lock.locked) {
-    const minutes = Math.max(1, Math.ceil((lock.retryAfterMs ?? 0) / 60_000));
-    return {
-      error: `로그인 시도가 너무 많습니다. 약 ${minutes}분 후 다시 시도해주세요.`,
-    };
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    return { error: "이메일 또는 비밀번호가 올바르지 않습니다." };
   }
 
-  try {
-    await signIn("credentials", { email, password, redirectTo: "/profile" });
-  } catch (error) {
-    if (error instanceof AuthError) {
-      await recordFailedLogin(email);
-      return { error: "이메일 또는 비밀번호가 올바르지 않습니다." };
-    }
-    // AuthError가 아니라는 것은 next-auth가 로그인 성공 후 리다이렉트를 던진 것이므로
-    // 그동안의 실패 기록을 정리하고 리다이렉트가 정상 동작하도록 다시 던진다.
-    await clearFailedLogins(email);
-    throw error;
-  }
+  redirect("/profile");
+}
+
+export async function logout() {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  redirect("/login");
 }

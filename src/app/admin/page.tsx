@@ -1,32 +1,12 @@
-﻿import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-
-
-import { prisma } from "@/lib/prisma";
+﻿import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/require-admin";
 import Link from "next/link";
 import { CsvUploadForm } from "./csv-upload-form";
 import { NewsForm } from "./news-form";
+import { DeleteUserButton } from "./delete-user-button";
 
 export default async function AdminPage() {
-  const session = await auth();
-  if (!session?.user?.email) {
-    redirect("/login");
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-  });
-
-  if (!user?.isAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">접근 권한 없음</h1>
-          <p className="text-slate-600 mb-4">관리자만 접근할 수 있습니다.</p>
-        </div>
-      </div>
-    );
-  }
+  const user = await requireAdmin();
 
   const [totalUsers, totalPolicies, totalNews, users] = await Promise.all([
     prisma.user.count(),
@@ -81,6 +61,7 @@ export default async function AdminPage() {
                   <th className="py-2 pr-4 font-medium">가입 방식</th>
                   <th className="py-2 pr-4 font-medium">프로필</th>
                   <th className="py-2 pr-4 font-medium">권한</th>
+                  <th className="py-2 pr-4 font-medium"></th>
                 </tr>
               </thead>
               <tbody>
@@ -107,6 +88,11 @@ export default async function AdminPage() {
                         <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">
                           관리자
                         </span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-4">
+                      {u.id !== user.id && (
+                        <DeleteUserButton userId={u.id} email={u.email ?? u.id} />
                       )}
                     </td>
                   </tr>

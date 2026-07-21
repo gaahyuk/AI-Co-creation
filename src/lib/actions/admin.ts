@@ -6,6 +6,17 @@ import { prisma } from "@/lib/prisma";
 
 export type AdminNewsState = { ok: string } | { error: string } | undefined;
 
+export async function deleteUser(userId: string) {
+  const admin = await requireAdmin();
+
+  if (admin.id === userId) {
+    throw new Error("본인 계정은 삭제할 수 없습니다.");
+  }
+
+  await prisma.user.delete({ where: { id: userId } });
+  revalidatePath("/admin");
+}
+
 export async function createNews(
   _state: AdminNewsState,
   formData: FormData

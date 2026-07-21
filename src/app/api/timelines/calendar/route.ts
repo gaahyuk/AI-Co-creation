@@ -1,13 +1,11 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
-
-
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
+    const user = await getCurrentUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -67,10 +65,6 @@ export async function GET(req: NextRequest) {
     });
 
     // 사용자의 정책 저장 상태 조회
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
     let userTracking: Record<string, boolean> = {};
     if (user) {
       const trackings = await prisma.userPolicyTracking.findMany({

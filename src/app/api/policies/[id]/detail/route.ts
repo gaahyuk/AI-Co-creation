@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
 
 type Props = { params: Promise<{ id: string }> };
@@ -7,8 +7,8 @@ type Props = { params: Promise<{ id: string }> };
 // 카드 상세를 펼칠 때만 지연 조회한다.
 export async function GET(_req: Request, props: Props) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const user = await getCurrentUser();
+    if (!user) {
       return new Response(null, { status: 401 });
     }
 

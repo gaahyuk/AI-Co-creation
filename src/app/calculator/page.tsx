@@ -1,13 +1,12 @@
 ﻿import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-
+import { getCurrentUser } from "@/lib/current-user";
 
 import Link from "next/link";
 import { IncomeCalculator } from "./income-calculator";
 
 export default async function CalculatorPage() {
-  const session = await auth();
-  if (!session?.user?.email) {
+  const user = await getCurrentUser();
+  if (!user) {
     redirect("/login");
   }
 

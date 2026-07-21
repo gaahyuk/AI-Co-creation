@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
-import { auth, signOut } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/current-user";
+import { logout } from "@/lib/actions/auth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,11 +25,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth();
-  const isAdmin = session?.user?.id
-    ? (await prisma.user.findUnique({ where: { id: session.user.id }, select: { isAdmin: true } }))
-        ?.isAdmin ?? false
-    : false;
+  const user = await getCurrentUser();
+  const isAdmin = user?.isAdmin ?? false;
 
   return (
     <html
@@ -37,7 +34,7 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
-        {session?.user && (
+        {user && (
           <nav className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/90 px-4 py-3 text-sm backdrop-blur">
             <div className="mx-auto flex w-full max-w-xl items-center justify-between">
               <div className="flex items-center gap-4 font-medium text-slate-600">
@@ -56,12 +53,7 @@ export default async function RootLayout({
                   </Link>
                 )}
               </div>
-              <form
-                action={async () => {
-                  "use server";
-                  await signOut({ redirectTo: "/login" });
-                }}
-              >
+              <form action={logout}>
                 <button type="submit" className="text-slate-400 hover:text-slate-600">
                   로그아웃
                 </button>

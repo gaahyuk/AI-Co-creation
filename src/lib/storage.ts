@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
-import path from "node:path";
-import fs from "node:fs/promises";
+import { createClient } from "@/lib/supabase/server";
 
-const STORAGE_ROOT = path.join(process.cwd(), "storage", "documents");
+const BUCKET = "documents";
 
 const ALLOWED_EXTENSIONS: Record<string, string> = {
   pdf: "application/pdf",
@@ -20,32 +19,46 @@ export function contentTypeForExtension(ext: string): string {
 }
 
 // 사용자가 올린 원본 파일명은 서빙용 응답 헤더/화면 표시에만 쓰고,
-// 실제 디스크 경로는 항상 서버가 생성한 랜덤 id + 확장자만 사용한다 (경로 조작 방지).
+// 실제 저장 경로는 항상 서버가 생성한 랜덤 id + 확장자만 사용한다 (경로 조작 방지).
+// filePath는 Supabase Storage 버킷("documents") 안의 오브젝트 키(예: {userId}/{uuid}.pdf)다.
 export async function saveDocumentFile(
   userId: string,
   extension: string,
   buffer: Buffer
 ): Promise<{ filePath: string }> {
-  const dir = path.join(STORAGE_ROOT, userId);
-  await fs.mkdir(dir, { recursive: true });
+  const supabase = await createClient();
+  const filePath = `${userId}/${randomUUID()}.${extension.toLowerCase()}`;
 
-  const storedFileName = `${randomUUID()}.${extension.toLowerCase()}`;
-  const filePath = path.join(dir, storedFileName);
-  await fs.writeFile(filePath, buffer);
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(filePath, buffer, {
+      contentType: contentTypeForExtension(extension),
+      upsert: false,
+    });
+
+  if (error) {
+    throw new Error(`파일 업로드 실패: ${error.message}`);
+  }
 
   return { filePath };
 }
 
 export async function readDocumentFile(filePath: string): Promise<Buffer> {
-  return fs.readFile(filePath);
+  const supabase = await createClient();
+  const { data, error } = await supabase.storage.from(BUCKET).download(filePath);
+
+  if (error || !data) {
+    throw new Error(`파일 다운로드 실패: ${error?.message ?? "unknown error"}`);
+  }
+
+  return Buffer.from(await data.arrayBuffer());
 }
 
 export async function deleteDocumentFile(filePath: string): Promise<void> {
-  try {
-    await fs.unlink(filePath);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      throw error;
-    }
+  const supabase = await createClient();
+  const { error } = await supabase.storage.from(BUCKET).remove([filePath]);
+
+  if (error) {
+    throw new Error(`파일 삭제 실패: ${error.message}`);
   }
 }

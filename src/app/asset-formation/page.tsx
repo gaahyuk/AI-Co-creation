@@ -1,14 +1,13 @@
 ﻿import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-
+import { getCurrentUser } from "@/lib/current-user";
 
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { AssetSimulator } from "./asset-simulator";
 
 export default async function AssetFormationPage() {
-  const session = await auth();
-  if (!session?.user?.email) {
+  const user = await getCurrentUser();
+  if (!user) {
     redirect("/login");
   }
 

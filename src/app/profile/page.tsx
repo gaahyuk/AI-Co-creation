@@ -1,17 +1,17 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
 import { ProfileForm } from "./profile-form";
 import { NewsletterSubscription } from "./newsletter-subscription";
 
 export default async function ProfilePage() {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     redirect("/login");
   }
 
   const profile = await prisma.userProfile.findUnique({
-    where: { userId: session.user.id },
+    where: { userId: user.id },
   });
 
   return (

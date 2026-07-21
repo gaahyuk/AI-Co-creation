@@ -1,26 +1,16 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
-
-
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
+    const user = await getCurrentUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
     const { categories, frequency, subscribed } = body;
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
 
     const subscription = await prisma.newsletterSubscription.upsert({
       where: { userId: user.id },
@@ -31,7 +21,7 @@ export async function POST(req: NextRequest) {
       },
       create: {
         userId: user.id,
-        email: session.user.email,
+        email: user.email ?? "",
         categories: categories ?? null,
         frequency: frequency || "weekly",
         subscribed: subscribed ?? true,
@@ -58,13 +48,13 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
+    const user = await getCurrentUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const subscription = await prisma.newsletterSubscription.findUnique({
-      where: { email: session.user.email },
+      where: { userId: user.id },
     });
 
     return NextResponse.json({

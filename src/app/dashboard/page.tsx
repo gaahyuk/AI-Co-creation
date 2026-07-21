@@ -1,6 +1,5 @@
 ﻿import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-
+import { getCurrentUser } from "@/lib/current-user";
 
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -9,13 +8,13 @@ import { DashboardOverview } from "./dashboard-overview";
 import { DeadlineAlerts } from "./deadline-alerts";
 
 export default async function DashboardPage() {
-  const session = await auth();
-  if (!session?.user?.email) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
     redirect("/login");
   }
 
   const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
+    where: { id: currentUser.id },
     include: {
       trackings: true,
       documentProgressList: true,

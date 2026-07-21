@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
 import { TIP_TYPES } from "@/lib/constants";
 
@@ -16,8 +16,8 @@ export async function GET(
   _req: Request,
   ctx: RouteContext<"/api/policies/[id]/tips">
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     return new Response(null, { status: 401 });
   }
 
@@ -36,8 +36,8 @@ export async function POST(
   req: Request,
   ctx: RouteContext<"/api/policies/[id]/tips">
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     return new Response(null, { status: 401 });
   }
 
@@ -54,7 +54,7 @@ export async function POST(
   }
 
   const recent = await prisma.policyTip.findFirst({
-    where: { userId: session.user.id },
+    where: { userId: user.id },
     orderBy: { createdAt: "desc" },
   });
   if (recent && Date.now() - recent.createdAt.getTime() < RATE_LIMIT_MS) {
@@ -67,7 +67,7 @@ export async function POST(
   const tip = await prisma.policyTip.create({
     data: {
       policyId,
-      userId: session.user.id,
+      userId: user.id,
       content: parsed.data.content,
       tipType: parsed.data.tipType,
     },

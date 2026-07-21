@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/current-user";
 
 const ProfileSchema = z.object({
   birthDate: z.string().min(1, { error: "생년월일을 입력해주세요." }),
@@ -21,8 +21,8 @@ export async function saveProfile(
   _state: ProfileActionState,
   formData: FormData
 ): Promise<ProfileActionState> {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     redirect("/login");
   }
 
@@ -54,9 +54,9 @@ export async function saveProfile(
   };
 
   await prisma.userProfile.upsert({
-    where: { userId: session.user.id },
+    where: { userId: user.id },
     update: data,
-    create: { userId: session.user.id, ...data },
+    create: { userId: user.id, ...data },
   });
 
   redirect("/policies");

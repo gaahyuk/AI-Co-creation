@@ -3,7 +3,7 @@
 import path from "node:path";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
 import { getOcrClient } from "@/lib/adapters";
 import { classifyDocType } from "@/lib/document-classifier";
@@ -17,8 +17,8 @@ export async function uploadDocument(
   _state: UploadDocumentState,
   formData: FormData
 ): Promise<UploadDocumentState> {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     redirect("/login");
   }
 
@@ -36,11 +36,11 @@ export async function uploadDocument(
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const { filePath } = await saveDocumentFile(session.user.id, ext, buffer);
+  const { filePath } = await saveDocumentFile(user.id, ext, buffer);
 
   const document = await prisma.document.create({
     data: {
-      userId: session.user.id,
+      userId: user.id,
       fileUrl: filePath,
       fileName: file.name,
       ocrStatus: "pending",
@@ -67,13 +67,13 @@ export async function uploadDocument(
 }
 
 export async function deleteDocument(documentId: string) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     throw new Error("로그인이 필요합니다.");
   }
 
   const document = await prisma.document.findUnique({ where: { id: documentId } });
-  if (!document || document.userId !== session.user.id) {
+  if (!document || document.userId !== user.id) {
     throw new Error("문서를 찾을 수 없습니다.");
   }
 
@@ -85,8 +85,8 @@ export async function deleteDocument(documentId: string) {
 }
 
 export async function updateDocumentType(documentId: string, formData: FormData) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     throw new Error("로그인이 필요합니다.");
   }
 
@@ -96,7 +96,7 @@ export async function updateDocumentType(documentId: string, formData: FormData)
   }
 
   const document = await prisma.document.findUnique({ where: { id: documentId } });
-  if (!document || document.userId !== session.user.id) {
+  if (!document || document.userId !== user.id) {
     throw new Error("문서를 찾을 수 없습니다.");
   }
 

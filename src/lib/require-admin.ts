@@ -1,15 +1,13 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/current-user";
 
 export async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     redirect("/login");
   }
 
-  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (!user?.isAdmin) {
+  if (!user.isAdmin) {
     redirect("/policies");
   }
 

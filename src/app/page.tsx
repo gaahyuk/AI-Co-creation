@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/current-user";
 
 export default async function Home() {
-  const session = await auth();
+  const user = await getCurrentUser();
   // 로그인 상태면 바로 맞춤 정책으로 보낸다.
-  if (session?.user) redirect("/policies");
+  if (user) redirect("/policies");
 
   return (
     <main className="mx-auto flex min-h-full max-w-xl flex-col items-center justify-center px-6 py-20 text-center">

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { DocumentChecklist } from "./document-checklist";
@@ -13,8 +13,8 @@ export default async function PolicyDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await auth();
-  if (!session?.user?.email) {
+  const user = await getCurrentUser();
+  if (!user) {
     redirect("/login");
   }
 
@@ -46,14 +46,6 @@ export default async function PolicyDetailPage({
     where: { policyId },
     include: { document: true },
   });
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-  });
-
-  if (!user) {
-    redirect("/login");
-  }
 
   const userProgress = await prisma.userDocumentProgress.findMany({
     where: {

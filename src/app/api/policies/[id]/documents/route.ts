@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/current-user";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
+    const user = await getCurrentUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -32,13 +32,9 @@ export async function GET(
     });
 
     // 사용자의 서류 준비 상태 조회
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
     const userProgress = await prisma.userDocumentProgress.findMany({
       where: {
-        userId: user?.id,
+        userId: user.id,
         policyId,
       },
     });

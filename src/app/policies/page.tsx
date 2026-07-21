@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
 import { evaluateMatch } from "@/lib/matching-engine";
 import { docTypeName, regionName, URGENT_TIP_TYPES } from "@/lib/constants";
@@ -51,11 +51,11 @@ function ddayLabel(end: Date | null): PolicyCard["dday"] {
 }
 
 export default async function PoliciesPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
 
   const profile = await prisma.userProfile.findUnique({
-    where: { userId: session.user.id },
+    where: { userId: user.id },
   });
   if (!profile || !profile.regionCode) redirect("/profile");
 
@@ -63,8 +63,8 @@ export default async function PoliciesPage() {
 
   const [policies, trackings, documents, urgentTipGroups] = await Promise.all([
     prisma.policy.findMany({ include: { requiredDocuments: true }, orderBy: { title: "asc" } }),
-    prisma.userPolicyTracking.findMany({ where: { userId: session.user.id } }),
-    prisma.document.findMany({ where: { userId: session.user.id } }),
+    prisma.userPolicyTracking.findMany({ where: { userId: user.id } }),
+    prisma.document.findMany({ where: { userId: user.id } }),
     prisma.policyTip.groupBy({
       by: ["policyId"],
       where: { tipType: { in: [...URGENT_TIP_TYPES] }, createdAt: { gte: oneDayAgo } },
