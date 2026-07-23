@@ -15,6 +15,40 @@ export default function PolicyDetail({ params }) {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Reviews & Comments Feature State
+  const [reviews, setReviews] = useState([]);
+  const [newReviewContent, setNewReviewContent] = useState("");
+  const [replyingToId, setReplyingToId] = useState(null);
+  const [replyContent, setReplyContent] = useState("");
+  const [storageMode, setStorageMode] = useState("supabase"); // "supabase" or "local"
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+
+  const fetchReviews = async (policyId) => {
+    setReviewsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("policy_reviews")
+        .select("*")
+        .eq("policy_id", policyId)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      setReviews(data || []);
+      setStorageMode("supabase");
+    } catch (err) {
+      console.warn("[Reviews] Failed to fetch from Supabase, falling back to localStorage:", err.message);
+      setStorageMode("local");
+      const localData = localStorage.getItem(`policy_reviews_${policyId}`);
+      if (localData) {
+        setReviews(JSON.parse(localData));
+      } else {
+        setReviews([]);
+      }
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
   useEffect(() => {
     const fetchPolicyData = async () => {
       // Next.js 15/16 Breaking Change: params is a Promise. We must await it.
@@ -61,6 +95,9 @@ export default function PolicyDetail({ params }) {
         if (appError && appError.code !== "PGRST116") throw appError;
         setIsSaved(!!app);
 
+        // 4. Fetch Reviews
+        await fetchReviews(id);
+
       } catch (err) {
         console.error("[Policy Detail Error]:", err.message);
       } finally {
@@ -70,6 +107,132 @@ export default function PolicyDetail({ params }) {
 
     fetchPolicyData();
   }, [params, router]);
+
+  const saveReviewLocally = (updated) => {
+    setStorageMode("local");
+    setReviews(updated);
+    if (policy) {
+      localStorage.setItem(`policy_reviews_${policy.id}`, JSON.stringify(updated));
+    }
+  };
+
+  const handleAddReview = async (content, parentId = null) => {
+    if (!content.trim() || !user || !policy) return;
+
+    const newReviewItem = {
+      id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
+      policy_id: policy.id,
+      user_id: user.id,
+      user_email: user.email || "tester@policyflow.ai",
+      content: content.trim(),
+      parent_id: parentId,
+      likes_count: 0,
+      liked_users: [],
+      created_at: new Date().toISOString()
+    };
+
+    if (storageMode === "supabase") {
+      try {
+        const { data, error } = await supabase
+          .from("policy_reviews")
+          .insert({
+            policy_id: newReviewItem.policy_id,
+            user_id: newReviewItem.user_id,
+            user_email: newReviewItem.user_email,
+            content: newReviewItem.content,
+            parent_id: newReviewItem.parent_id,
+            likes_count: 0,
+            liked_users: []
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        setReviews((prev) => [...prev, data]);
+      } catch (err) {
+        console.warn("[Reviews] Supabase save failed, saving locally:", err.message);
+        saveReviewLocally([...reviews, newReviewItem]);
+      }
+    } else {
+      saveReviewLocally([...reviews, newReviewItem]);
+    }
+
+    if (parentId) {
+      setReplyingToId(null);
+      setReplyContent("");
+    } else {
+      setNewReviewContent("");
+    }
+  };
+
+  const handleToggleLike = async (reviewId) => {
+    if (!user || !policy) return;
+
+    const userIdentifier = user.email || user.id;
+    const updatedReviews = reviews.map((r) => {
+      if (r.id === reviewId) {
+        const likedUsers = Array.isArray(r.liked_users) ? r.liked_users : [];
+        const isLiked = likedUsers.includes(userIdentifier);
+        const nextLikedUsers = isLiked
+          ? likedUsers.filter((u) => u !== userIdentifier)
+          : [...likedUsers, userIdentifier];
+        return {
+          ...r,
+          liked_users: nextLikedUsers,
+          likes_count: nextLikedUsers.length
+        };
+      }
+      return r;
+    });
+
+    const targetReview = updatedReviews.find((r) => r.id === reviewId);
+    if (!targetReview) return;
+
+    setReviews(updatedReviews);
+
+    if (storageMode === "supabase") {
+      try {
+        const { error } = await supabase
+          .from("policy_reviews")
+          .update({
+            liked_users: targetReview.liked_users,
+            likes_count: targetReview.likes_count
+          })
+          .eq("id", reviewId);
+
+        if (error) throw error;
+      } catch (err) {
+        console.warn("[Reviews] Supabase like update failed, updating locally:", err.message);
+        saveReviewLocally(updatedReviews);
+      }
+    } else {
+      saveReviewLocally(updatedReviews);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId) => {
+    if (!confirm("이 후기(및 답글)를 삭제하시겠습니까?")) return;
+
+    // Delete review and all child replies
+    const updatedReviews = reviews.filter((r) => r.id !== reviewId && r.parent_id !== reviewId);
+    setReviews(updatedReviews);
+
+    if (storageMode === "supabase") {
+      try {
+        const { error } = await supabase
+          .from("policy_reviews")
+          .delete()
+          .eq("id", reviewId);
+
+        if (error) throw error;
+      } catch (err) {
+        console.warn("[Reviews] Supabase delete failed, deleting locally:", err.message);
+        saveReviewLocally(updatedReviews);
+      }
+    } else {
+      saveReviewLocally(updatedReviews);
+    }
+  };
 
   const handleWalletToggle = async () => {
     if (!user || !policy) return;
@@ -325,6 +488,220 @@ export default function PolicyDetail({ params }) {
           <Link href="/wallet" className="btn btn-primary" style={{ flex: 1, textAlign: "center", backgroundColor: "var(--text-announcement)", color: "#ffffff", minWidth: "180px" }} id="btn-detail-prepare-docs">
             서류 준비하러 가기
           </Link>
+        )}
+      </section>
+
+      {/* Policy Experience & Reviews Section */}
+      <section style={{ marginTop: "60px", paddingTop: "40px", borderTop: "1px solid var(--separator)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+          <h2 style={{ fontSize: "22px", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+            💬 정책 수혜 체험 & 기대평 한마디
+          </h2>
+          {storageMode === "local" && (
+            <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-warning)", padding: "2px 8px", backgroundColor: "rgba(255, 164, 43, 0.1)", borderRadius: "4px" }}>
+              ⚡ 로컬 브라우저 저장 모드
+            </span>
+          )}
+        </div>
+
+        {/* Input box */}
+        <div style={{ backgroundColor: "var(--bg-surface)", padding: "20px", borderRadius: "8px", marginBottom: "32px", border: "1px solid rgba(255,255,255,0.05)" }}>
+          <label style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-base)", marginBottom: "8px", display: "block" }}>후기 작성</label>
+          <div style={{ display: "flex", gap: "12px", alignItems: "flex-end" }}>
+            <textarea
+              style={{
+                flex: 1,
+                backgroundColor: "var(--bg-mid)",
+                color: "#ffffff",
+                border: "1px solid var(--border-gray)",
+                borderRadius: "6px",
+                padding: "12px",
+                fontSize: "14px",
+                fontFamily: "var(--font-family)",
+                minHeight: "80px",
+                resize: "vertical",
+                outline: "none"
+              }}
+              placeholder="이 정책에 대한 수혜 후기나 기대평을 자유롭게 나누어 보세요!"
+              value={newReviewContent}
+              onChange={(e) => setNewReviewContent(e.target.value)}
+            />
+            <button
+              className="btn btn-primary"
+              style={{ padding: "12px 24px", height: "fit-content", textTransform: "none", letterSpacing: "normal" }}
+              onClick={() => handleAddReview(newReviewContent)}
+            >
+              등록
+            </button>
+          </div>
+        </div>
+
+        {/* Review list */}
+        {reviewsLoading ? (
+          <p style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: "14px" }}>후기를 불러오는 중...</p>
+        ) : reviews.filter(r => !r.parent_id).length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px", backgroundColor: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px dashed var(--border-gray)" }}>
+            <p style={{ color: "var(--text-secondary)", margin: 0, fontSize: "14px" }}>아직 등록된 후기가 없습니다. 첫 번째 후기를 작성해 보세요!</p>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            {reviews
+              .filter((r) => !r.parent_id)
+              .map((mainReview) => {
+                const mainReplies = reviews.filter((r) => r.parent_id === mainReview.id);
+                const userIdentifier = user?.email || user?.id;
+                const isLiked = Array.isArray(mainReview.liked_users) && mainReview.liked_users.includes(userIdentifier);
+                const isOwnReview = user && mainReview.user_id === user.id;
+
+                return (
+                  <div key={mainReview.id} style={{ display: "flex", flexDirection: "column", gap: "12px", backgroundColor: "var(--bg-surface)", padding: "20px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.05)" }}>
+                    {/* Header */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ fontSize: "14px", fontWeight: "700", color: "#ffffff" }}>
+                          {mainReview.user_email}
+                        </span>
+                        <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
+                          {new Date(mainReview.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {isOwnReview && (
+                        <button
+                          style={{ background: "none", border: "none", color: "var(--text-negative)", fontSize: "12px", cursor: "pointer", fontWeight: "700" }}
+                          onClick={() => handleDeleteReview(mainReview.id)}
+                        >
+                          삭제
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <p style={{ margin: 0, fontSize: "14px", color: "#ffffff", whiteSpace: "pre-wrap", lineHeight: "1.6" }}>
+                      {mainReview.content}
+                    </p>
+
+                    {/* Footer Actions */}
+                    <div style={{ display: "flex", gap: "16px", alignItems: "center", marginTop: "8px" }}>
+                      <button
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: isLiked ? "var(--brand-green)" : "var(--text-secondary)",
+                          fontSize: "13px",
+                          fontWeight: "700",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px"
+                        }}
+                        onClick={() => handleToggleLike(mainReview.id)}
+                      >
+                        👍 {mainReview.likes_count || 0}
+                      </button>
+                      <button
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: replyingToId === mainReview.id ? "#ffffff" : "var(--text-secondary)",
+                          fontSize: "13px",
+                          fontWeight: "700",
+                          cursor: "pointer"
+                        }}
+                        onClick={() => {
+                          setReplyingToId(replyingToId === mainReview.id ? null : mainReview.id);
+                          setReplyContent("");
+                        }}
+                      >
+                        💬 답글 달기
+                      </button>
+                    </div>
+
+                    {/* Reply Input Form */}
+                    {replyingToId === mainReview.id && (
+                      <div style={{ display: "flex", gap: "10px", marginTop: "12px", paddingLeft: "16px", borderLeft: "2px solid var(--border-gray)" }}>
+                        <input
+                          type="text"
+                          style={{
+                            flex: 1,
+                            backgroundColor: "var(--bg-mid)",
+                            color: "#ffffff",
+                            border: "1px solid var(--border-gray)",
+                            borderRadius: "6px",
+                            padding: "8px 12px",
+                            fontSize: "13px",
+                            outline: "none"
+                          }}
+                          placeholder="답글을 남겨주세요..."
+                          value={replyContent}
+                          onChange={(e) => setReplyContent(e.target.value)}
+                        />
+                        <button
+                          className="btn btn-primary"
+                          style={{ padding: "8px 16px", fontSize: "12px", textTransform: "none", letterSpacing: "normal", borderRadius: "6px" }}
+                          onClick={() => handleAddReview(replyContent, mainReview.id)}
+                        >
+                          등록
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Nested Replies */}
+                    {mainReplies.length > 0 && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "16px", paddingLeft: "20px", borderLeft: "2px solid var(--separator)" }}>
+                        {mainReplies.map((reply) => {
+                          const isReplyLiked = Array.isArray(reply.liked_users) && reply.liked_users.includes(userIdentifier);
+                          const isOwnReply = user && reply.user_id === user.id;
+
+                          return (
+                            <div key={reply.id} style={{ display: "flex", flexDirection: "column", gap: "6px", backgroundColor: "rgba(255,255,255,0.02)", padding: "12px 16px", borderRadius: "6px" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                  <span style={{ fontSize: "13px", fontWeight: "700", color: "#ffffff" }}>
+                                    {reply.user_email}
+                                  </span>
+                                  <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
+                                    {new Date(reply.created_at).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                {isOwnReply && (
+                                  <button
+                                    style={{ background: "none", border: "none", color: "var(--text-negative)", fontSize: "11px", cursor: "pointer", fontWeight: "700" }}
+                                    onClick={() => handleDeleteReview(reply.id)}
+                                  >
+                                    삭제
+                                  </button>
+                                )}
+                              </div>
+                              <p style={{ margin: 0, fontSize: "13px", color: "var(--text-near-white)", whiteSpace: "pre-wrap", lineHeight: "1.5" }}>
+                                {reply.content}
+                              </p>
+                              <div style={{ display: "flex", gap: "12px", alignItems: "center", marginTop: "4px" }}>
+                                <button
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    color: isReplyLiked ? "var(--brand-green)" : "var(--text-secondary)",
+                                    fontSize: "12px",
+                                    fontWeight: "700",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "4px"
+                                  }}
+                                  onClick={() => handleToggleLike(reply.id)}
+                                >
+                                  👍 {reply.likes_count || 0}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
         )}
       </section>
     </div>
