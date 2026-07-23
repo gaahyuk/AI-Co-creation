@@ -139,6 +139,10 @@ export default function PolicyDetail({ params }) {
 
     const updatedReviews = [...reviews, newReviewItem];
 
+    // 항상 localStorage에 먼저 저장 (데이터 손실 방지)
+    saveReviewLocally(updatedReviews);
+
+    // Supabase로도 저장 시도
     if (storageMode === "supabase") {
       try {
         const { data, error } = await supabase
@@ -156,13 +160,9 @@ export default function PolicyDetail({ params }) {
           .single();
 
         if (error) throw error;
-        setReviews((prev) => [...prev, data]);
       } catch (err) {
-        console.warn("[Reviews] Supabase save failed, saving locally:", err.message);
-        saveReviewLocally(updatedReviews);
+        console.warn("[Reviews] Supabase save attempted (already saved locally):", err.message);
       }
-    } else {
-      saveReviewLocally(updatedReviews);
     }
 
     if (parentId) {
@@ -196,6 +196,8 @@ export default function PolicyDetail({ params }) {
     const targetReview = updatedReviews.find((r) => r.id === reviewId);
     if (!targetReview) return;
 
+    // 항상 localStorage에 먼저 저장
+    saveReviewLocally(updatedReviews);
     setReviews(updatedReviews);
 
     if (storageMode === "supabase") {
@@ -210,11 +212,8 @@ export default function PolicyDetail({ params }) {
 
         if (error) throw error;
       } catch (err) {
-        console.warn("[Reviews] Supabase like update failed, updating locally:", err.message);
-        saveReviewLocally(updatedReviews);
+        console.warn("[Reviews] Supabase like update attempted (already saved locally):", err.message);
       }
-    } else {
-      saveReviewLocally(updatedReviews);
     }
   };
 
@@ -223,6 +222,9 @@ export default function PolicyDetail({ params }) {
 
     // Delete review and all child replies
     const updatedReviews = reviews.filter((r) => r.id !== reviewId && r.parent_id !== reviewId);
+
+    // 항상 localStorage에 먼저 저장
+    saveReviewLocally(updatedReviews);
     setReviews(updatedReviews);
 
     if (storageMode === "supabase") {
@@ -234,11 +236,8 @@ export default function PolicyDetail({ params }) {
 
         if (error) throw error;
       } catch (err) {
-        console.warn("[Reviews] Supabase delete failed, deleting locally:", err.message);
-        saveReviewLocally(updatedReviews);
+        console.warn("[Reviews] Supabase delete attempted (already deleted locally):", err.message);
       }
-    } else {
-      saveReviewLocally(updatedReviews);
     }
   };
 
