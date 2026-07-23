@@ -56,7 +56,7 @@ export default function PolicyDetail({ params }) {
       const id = resolvedParams.id;
 
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         router.push("/auth/login");
         return;
@@ -108,6 +108,12 @@ export default function PolicyDetail({ params }) {
     fetchPolicyData();
   }, [params, router]);
 
+  useEffect(() => {
+    if (policy?.id) {
+      fetchReviews(policy.id);
+    }
+  }, [policy?.id]);
+
   const saveReviewLocally = (updated) => {
     setStorageMode("local");
     setReviews(updated);
@@ -131,6 +137,8 @@ export default function PolicyDetail({ params }) {
       created_at: new Date().toISOString()
     };
 
+    const updatedReviews = [...reviews, newReviewItem];
+
     if (storageMode === "supabase") {
       try {
         const { data, error } = await supabase
@@ -151,10 +159,10 @@ export default function PolicyDetail({ params }) {
         setReviews((prev) => [...prev, data]);
       } catch (err) {
         console.warn("[Reviews] Supabase save failed, saving locally:", err.message);
-        saveReviewLocally([...reviews, newReviewItem]);
+        saveReviewLocally(updatedReviews);
       }
     } else {
-      saveReviewLocally([...reviews, newReviewItem]);
+      saveReviewLocally(updatedReviews);
     }
 
     if (parentId) {
