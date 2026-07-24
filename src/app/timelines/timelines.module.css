@@ -1,0 +1,310 @@
+/* 정책 시즌 캘린더 페이지 전용 스타일 */
+
+/* --- 월 네비게이션 --- */
+.monthNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.navBtn {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #f2f4f6;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-sub);
+  cursor: pointer;
+}
+.navBtn:active {
+  background: var(--border);
+}
+.monthLabel {
+  font-size: 19px;
+  font-weight: 800;
+  text-align: center;
+}
+.seasonChips {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.seasonChip {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--toss-blue);
+  background: #eef4ff;
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+/* --- 달력 그리드 (순수 CSS) --- */
+.calGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-top: 14px;
+}
+.calWeekday {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-sub);
+  padding: 4px 0;
+}
+.calWeekday.sun {
+  color: var(--red);
+}
+.calDay {
+  position: relative;
+  min-height: 40px;
+  border-radius: 8px;
+  padding: 4px 0 12px;
+  text-align: center;
+  font-size: 13px;
+  background: transparent;
+}
+.calDay.sun {
+  color: var(--red);
+}
+.calDay.today {
+  background: #eef4ff;
+  font-weight: 800;
+  color: var(--toss-blue);
+}
+.calDay.deadline {
+  background: #fef2f2;
+  font-weight: 700;
+  color: var(--red);
+}
+.calDay.deadline.today {
+  outline: 2px solid var(--toss-blue);
+}
+.calDot {
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--red);
+}
+.calLegend {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-sub);
+}
+.calLegend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+.legendToday {
+  background: var(--toss-blue);
+}
+.legendDeadline {
+  background: var(--red);
+}
+
+/* --- 카테고리 태그 색상 --- */
+.catTag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 3px 8px;
+  flex: 0 0 auto;
+}
+.catJob {
+  color: #1b64da;
+  background: #eef4ff;
+}
+.catHousing {
+  color: #047857;
+  background: #ecfdf5;
+}
+.catEdu {
+  color: #7c3aed;
+  background: #f5f3ff;
+}
+.catWelfare {
+  color: #be123c;
+  background: #fff1f2;
+}
+.catRights {
+  color: #0f766e;
+  background: #f0fdfa;
+}
+
+/* --- 시즌 정책 행 --- */
+.timingRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.timingRow:last-child {
+  border-bottom: none;
+}
+.timingBody {
+  min-width: 0;
+  flex: 1;
+}
+.timingName {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.timingDesc {
+  font-size: 12px;
+  color: var(--text-sub);
+  margin-top: 3px;
+}
+.timingBadge {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 3px 8px;
+  height: fit-content;
+}
+.badgeOptimal {
+  color: #b45309;
+  background: #fffbeb;
+}
+.badgeSeasonal {
+  color: var(--toss-blue);
+  background: #eef4ff;
+}
+.badgeAllYear {
+  color: var(--text-sub);
+  background: #f2f4f6;
+}
+
+/* --- 월별 밀집도 차트 (순수 CSS 막대) --- */
+.chart {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 5px;
+  align-items: end;
+  height: 96px;
+  margin-top: 14px;
+}
+.chartCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  height: 100%;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+}
+.chartBar {
+  width: 100%;
+  max-width: 18px;
+  border-radius: 4px 4px 2px 2px;
+  background: #d5e3fb;
+  min-height: 4px;
+  transition: height 0.25s;
+}
+.chartBar.current {
+  background: var(--toss-blue);
+}
+.chartMonth {
+  font-size: 10px;
+  color: var(--text-sub);
+  line-height: 1;
+}
+.chartMonth.current {
+  color: var(--toss-blue);
+  font-weight: 800;
+}
+
+/* --- 학사일정 이벤트 행 --- */
+.eventRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.eventRow:last-child {
+  border-bottom: none;
+}
+.eventName {
+  font-weight: 600;
+}
+.eventPeriod {
+  color: var(--text-sub);
+  flex: 0 0 auto;
+}
+
+/* --- 학사 알림 배너 --- */
+.acadNotice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: #eef4ff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+}
+.acadIcon {
+  font-size: 18px;
+  line-height: 1.3;
+}
+.acadTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1b64da;
+}
+.acadBody {
+  font-size: 12px;
+  color: var(--text-sub);
+  margin-top: 2px;
+  line-height: 1.5;
+}
+
+/* --- 팁 카드 --- */
+.tipCard {
+  background: linear-gradient(135deg, #eef4ff, #f5f3ff);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 12px;
+}
+.tipCard h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+.tipCard ul {
+  margin: 0;
+  padding-left: 4px;
+  list-style: none;
+}
+.tipCard li {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #333d4b;
+  margin-bottom: 6px;
+}
+.tipCard li:last-child {
+  margin-bottom: 0;
+}

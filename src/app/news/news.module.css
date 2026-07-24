@@ -1,0 +1,92 @@
+/* /news 전용 스타일 — 공용 규칙은 globals.css 클래스 재사용 */
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.source {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.date {
+  font-size: 12px;
+  color: #8b95a1;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0 0 6px;
+}
+
+.summary {
+  font-size: 14px;
+  color: #333d4b;
+  line-height: 1.6;
+  margin: 0 0 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--toss-blue);
+}
+
+.newsletterHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.newsletterTitle {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.newsletterSub {
+  font-size: 13px;
+  color: var(--text-sub);
+  margin: 0 0 16px;
+}
+
+.groupLabel {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 14px 0 8px;
+}
+
+.message {
+  font-size: 13px;
+  color: var(--toss-blue);
+  margin-top: 12px;
+}
+
+.messageError {
+  font-size: 13px;
+  color: var(--red);
+  margin-top: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}

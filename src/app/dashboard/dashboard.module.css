@@ -1,0 +1,176 @@
+/* 대시보드 전용 스타일 (토스 스타일 모바일 기준) */
+
+/* --- 인사 히어로 카드 --- */
+.hero {
+  background: linear-gradient(135deg, var(--toss-blue), #1b64da);
+  color: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 12px;
+}
+.heroTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.heroTitle {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0;
+  line-height: 1.4;
+}
+.heroMsg {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-top: 4px;
+}
+.heroEmoji {
+  font-size: 28px;
+  line-height: 1;
+}
+.heroProgress {
+  margin-top: 14px;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.heroProgressLabel {
+  font-size: 12px;
+  opacity: 0.85;
+  display: flex;
+  justify-content: space-between;
+}
+.heroProgressLabel b {
+  font-size: 13px;
+}
+.heroTrack {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.25);
+  margin-top: 8px;
+  overflow: hidden;
+}
+.heroFill {
+  height: 100%;
+  background: #fff;
+  border-radius: 3px;
+  transition: width 0.25s;
+}
+
+/* --- 신청 현황 3열 타일 --- */
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.statTile {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 8px;
+  text-align: center;
+}
+.statNum {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+}
+.statNum.blue {
+  color: var(--toss-blue);
+}
+.statNum.green {
+  color: var(--green);
+}
+.statLabel {
+  font-size: 12px;
+  color: var(--text-sub);
+  margin-top: 4px;
+}
+
+/* --- 마감임박 알림 행 --- */
+.alertRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #fcd9a8;
+  background: #fffbeb;
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+}
+.alertRow.urgent {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+.alertName {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.alertSub {
+  font-size: 12px;
+  color: var(--text-sub);
+  margin-top: 2px;
+}
+.alertDday {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 5px 12px;
+  color: #b45309;
+  background: #fef3c7;
+}
+.alertRow.urgent .alertDday {
+  color: var(--red);
+  background: #fee2e2;
+}
+
+/* --- 서류 준비 행 --- */
+.docRow {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.docRow:last-child {
+  border-bottom: none;
+}
+.docHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.docName {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+.docCount {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--toss-blue);
+}
+.docCount.done {
+  color: var(--green);
+}
+
+/* --- 진단 결과 요약 --- */
+.diagBadge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--green);
+  background: #f0fdf4;
+  border-radius: 6px;
+  padding: 3px 8px;
+  margin-bottom: 8px;
+}

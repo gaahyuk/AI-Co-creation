@@ -11,6 +11,7 @@ import {
 } from "@/lib/storage";
 import type { PolicyWithEligibility } from "@/lib/youth/types";
 import { formatManwon } from "@/lib/format";
+import PolicyCommunity from "./policy-community";
 
 function Mark({ passed }: { passed: boolean | null }) {
   if (passed === true) return <span className="check-mark ok">충족 ✓</span>;
@@ -176,6 +177,11 @@ export default function PolicyDetailPage({
           </div>
         </div>
       )}
+
+      {/* 커뮤니티: 실시간 제보 + 공유 + 후기/QnA/성공사례 */}
+      <div className="section" style={{ paddingBottom: 72 }}>
+        <PolicyCommunity policy={policy} />
+      </div>
 
       <div className="bottombar">
         <button

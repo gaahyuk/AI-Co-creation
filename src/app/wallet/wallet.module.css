@@ -1,0 +1,220 @@
+/* 정책 지갑 페이지 전용 스타일 */
+
+/* --- 지갑 항목 카드 --- */
+.entryTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.entryName {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.entryDate {
+  font-size: 12px;
+  color: var(--text-sub);
+  margin-top: 4px;
+}
+
+.entryControls {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  align-items: center;
+}
+
+.statusSelect {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+  background: #fff;
+  color: var(--text);
+}
+
+.amountBox {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-sub);
+}
+
+.amountInput {
+  width: 84px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+  text-align: right;
+}
+
+.deleteBtn {
+  background: none;
+  border: none;
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px;
+  flex: 0 0 auto;
+}
+
+/* --- 담기 후보 (별표한 정책) --- */
+.importRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.importRow:last-child {
+  border-bottom: none;
+}
+
+.importName {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  min-width: 0;
+}
+
+.importAmount {
+  font-size: 12px;
+  color: #1b64da;
+  margin-top: 2px;
+}
+
+.importBtn {
+  flex: 0 0 auto;
+  background: var(--toss-blue);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* --- 리워드 --- */
+.pointsRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pointsValue {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--toss-blue);
+}
+
+.pointsUnit {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-sub);
+}
+
+.levelHint {
+  font-size: 12px;
+  color: var(--text-sub);
+  margin-top: 6px;
+}
+
+.badgeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.badge {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 6px 10px;
+  text-align: center;
+  opacity: 0.45;
+}
+
+.badgeEarned {
+  opacity: 1;
+  border-color: var(--toss-blue);
+  background: #eef4ff;
+}
+
+.badgeIcon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.badgeName {
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 6px;
+  line-height: 1.3;
+}
+
+.badgePoints {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--toss-blue);
+  margin-top: 2px;
+}
+
+.historyRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.historyRow:last-child {
+  border-bottom: none;
+}
+
+.historyReason {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.historyDate {
+  font-size: 12px;
+  color: var(--text-sub);
+  margin-top: 2px;
+}
+
+.historyPoints {
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+/* --- 보상 지급 토스트 --- */
+.toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  background: var(--text);
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 30;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+}

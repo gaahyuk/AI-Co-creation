@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import BottomNav from "@/components/BottomNav";
 
 export const metadata: Metadata = {
   title: "청년정책 - 나에게 맞는 정책 찾기",
@@ -21,7 +22,10 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body>
-        <div className="app">{children}</div>
+        <div className="app">
+          {children}
+          <BottomNav />
+        </div>
       </body>
     </html>
   );
